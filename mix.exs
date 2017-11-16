@@ -18,7 +18,7 @@ defmodule Phoenix.PubSub.RabbitMQ.Mixfile do
 
   defp deps do
     [{:poolboy, "~> 1.5.1"},
-     {:amqp, github: "pma/amqp"}]
+     {:amqp, "~> 1.0.0-pre.2"}]
   end
 
   defp description do
