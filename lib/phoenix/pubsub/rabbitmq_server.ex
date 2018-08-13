@@ -5,7 +5,7 @@ defmodule Phoenix.PubSub.RabbitMQServer do
   alias Phoenix.PubSub.RabbitMQConsumer, as: Consumer
   require Logger
 
-  @prefetch_count 10
+  #@prefetch_count 10
 
   @moduledoc """
   `Phoenix.PubSub` adapter for RabbitMQ
@@ -30,8 +30,8 @@ defmodule Phoenix.PubSub.RabbitMQServer do
 
     {:ok,
      %{
-       cons: HashDict.new(),
-       subs: HashDict.new(),
+       cons: Map.new(),
+       subs: Map.new(),
        conn_pool_name: conn_pool_name,
        pub_pool_name: pub_pool_name,
        exchange: rabbitmq_namespace(server_name),
@@ -44,8 +44,8 @@ defmodule Phoenix.PubSub.RabbitMQServer do
     link = Keyword.get(opts, :link, false)
 
     has_key =
-      case Dict.get(state.subs, topic) do
-        {pids, size} when size > 0 -> Dict.has_key?(pids, pid)
+      case Map.get(state.subs, topic) do
+        {pids, size} when size > 0 -> Map.has_key?(pids, pid)
         _ -> false
       end
 
@@ -61,15 +61,15 @@ defmodule Phoenix.PubSub.RabbitMQServer do
        %{
          state
          | subs: add_subscriber(state.subs, pid, topic, consumer_pid),
-           cons: Dict.put(state.cons, consumer_pid, {topic, pid})
+           cons: Map.put(state.cons, consumer_pid, {topic, pid})
        }}
     end
   end
 
   def handle_call({:unsubscribe, pid, topic}, _from, state) do
-    case Dict.fetch(state.subs, topic) do
+    case Map.fetch(state.subs, topic) do
       {:ok, {pids, _size}} ->
-        case Dict.fetch(pids, pid) do
+        case Map.fetch(pids, pid) do
           {:ok, consumer_pid} ->
             :ok = Consumer.stop(consumer_pid)
             {:reply, :ok, %{state | subs: delete_subscriber(state.subs, pid, topic)}}
@@ -88,8 +88,8 @@ defmodule Phoenix.PubSub.RabbitMQServer do
   end
 
   def handle_call({:subscribers, topic}, _from, state) do
-    case Dict.get(state.subs, topic, {HashDict.new(), 0}) do
-      {pids, size} when size > 0 -> {:reply, Dict.keys(pids), state}
+    case Map.get(state.subs, topic, {Map.new(), 0}) do
+      {pids, size} when size > 0 -> {:reply, Map.keys(pids), state}
       {_, 0} -> {:reply, [], state}
     end
   end
@@ -109,11 +109,11 @@ defmodule Phoenix.PubSub.RabbitMQServer do
 
   def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
     state =
-      case Dict.fetch(state.cons, pid) do
+      case Map.fetch(state.cons, pid) do
         {:ok, {topic, sub_pid}} ->
           %{
             state
-            | cons: Dict.delete(state.cons, pid),
+            | cons: Map.delete(state.cons, pid),
               subs: delete_subscriber(state.subs, sub_pid, topic)
           }
 
@@ -131,21 +131,21 @@ defmodule Phoenix.PubSub.RabbitMQServer do
 
   defp add_subscriber(subs, pid, topic, consumer_pid) do
     subs
-    |> Dict.put_new(topic, {HashDict.new(), 0})
-    |> Dict.update!(topic, fn {dict, size} ->
-      {Dict.put_new(dict, pid, consumer_pid), size + 1}
+    |> Map.put_new(topic, {Map.new(), 0})
+    |> Map.update!(topic, fn {dict, size} ->
+      {Map.put_new(dict, pid, consumer_pid), size + 1}
     end)
   end
 
   defp delete_subscriber(subs, pid, topic) do
-    case Dict.fetch(subs, topic) do
+    case Map.fetch(subs, topic) do
       {:ok, {pids, size}} ->
-        {pids, size} = {Dict.delete(pids, pid), size - 1}
+        {pids, size} = {Map.delete(pids, pid), size - 1}
 
         if size > 0 do
-          Dict.put(subs, topic, pids)
+          Map.put(subs, topic, pids)
         else
-          Dict.delete(subs, topic)
+          Map.delete(subs, topic)
         end
 
       :error ->

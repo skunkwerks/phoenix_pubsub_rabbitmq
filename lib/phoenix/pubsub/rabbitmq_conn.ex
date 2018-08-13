@@ -21,7 +21,7 @@ defmodule Phoenix.PubSub.RabbitMQConn do
   @doc false
   def init([opts]) do
     Process.flag(:trap_exit, true)
-    send(self, :connect)
+    send(self(), :connect)
     {:ok, %{opts: opts, status: :disconnected, conn: nil}}
   end
 

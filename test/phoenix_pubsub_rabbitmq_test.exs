@@ -54,7 +54,7 @@ defmodule PhoenixRabbitmqPubsubTest do
   end
 
   def rand_server_name do
-    :crypto.rand_bytes(16) |> Base.encode16() |> String.to_atom()
+    :crypto.strong_rand_bytes(16) |> Base.encode16() |> String.to_atom()
   end
 
   defmodule FailedBroadcaster do
@@ -72,7 +72,7 @@ defmodule PhoenixRabbitmqPubsubTest do
     end
 
     test "#{inspect(@adapter)} #subscribers, #subscribe, #unsubscribe", context do
-      pid = spawn_pid
+      pid = spawn_pid()
       assert Enum.empty?(PubSub.subscribers(context[:server], "topic4"))
       assert PubSub.subscribe(context[:server], pid, "topic4")
       assert PubSub.subscribers(context[:server], "topic4") |> Enum.to_list() == [pid]
@@ -83,7 +83,7 @@ defmodule PhoenixRabbitmqPubsubTest do
     test "#{inspect(@adapter)} subscribe/3 with link does not down adapter", context do
       server_pid = Process.whereis(context[:server])
       assert Process.alive?(server_pid)
-      pid = spawn_pid
+      pid = spawn_pid()
 
       assert Enum.empty?(PubSub.subscribers(context[:server], "topic4"))
       assert PubSub.subscribe(context[:server], pid, "topic4", link: true)
@@ -96,9 +96,9 @@ defmodule PhoenixRabbitmqPubsubTest do
       server_pid = Process.whereis(context[:server])
       assert Process.alive?(server_pid)
 
-      pid = spawn_pid
-      non_linked_pid = spawn_pid
-      non_linked_pid2 = spawn_pid
+      pid = spawn_pid()
+      non_linked_pid = spawn_pid()
+      non_linked_pid2 = spawn_pid()
 
       assert PubSub.subscribe(context[:server], pid, "topic4", link: true)
       assert PubSub.subscribe(context[:server], non_linked_pid, "topic4")
@@ -114,42 +114,42 @@ defmodule PhoenixRabbitmqPubsubTest do
     test "#{inspect(@adapter)} broadcast/3 and broadcast!/3 publishes message to each subscriber",
          context do
       assert PubSub.subscribers(context[:server], "topic9") |> Enum.to_list() == []
-      PubSub.subscribe(context[:server], self, "topic9")
-      assert PubSub.subscribers(context[:server], "topic9") |> Enum.to_list() == [self]
+      PubSub.subscribe(context[:server], self(), "topic9")
+      assert PubSub.subscribers(context[:server], "topic9") |> Enum.to_list() == [self()]
       :ok = PubSub.broadcast(context[:server], "topic9", :ping)
       assert_receive :ping
       :ok = PubSub.broadcast!(context[:server], "topic9", :ping)
       assert_receive :ping
-      assert PubSub.subscribers(context[:server], "topic9") |> Enum.to_list() == [self]
+      assert PubSub.subscribers(context[:server], "topic9") |> Enum.to_list() == [self()]
     end
 
     test "#{inspect(@adapter)} broadcast!/3 and broadcast_from!/4 raise if broadcast fails",
          context do
-      PubSub.subscribe(context[:server], self, "topic9")
-      assert PubSub.subscribers(context[:server], "topic9") |> Enum.to_list() == [self]
+      PubSub.subscribe(context[:server], self(), "topic9")
+      assert PubSub.subscribers(context[:server], "topic9") |> Enum.to_list() == [self()]
 
       assert_raise PubSub.BroadcastError, fn ->
         PubSub.broadcast!(context[:server], "topic9", :ping, FailedBroadcaster)
       end
 
       assert_raise PubSub.BroadcastError, fn ->
-        PubSub.broadcast_from!(context[:server], self, "topic9", :ping, FailedBroadcaster)
+        PubSub.broadcast_from!(context[:server], self(), "topic9", :ping, FailedBroadcaster)
       end
 
       refute_receive :ping
     end
 
     test "#{inspect(@adapter)} broadcast_from/4 and broadcast_from!/4 skips sender", context do
-      PubSub.subscribe(context[:server], self, "topic11")
-      PubSub.broadcast_from(context[:server], self, "topic11", :ping)
+      PubSub.subscribe(context[:server], self(), "topic11")
+      PubSub.broadcast_from(context[:server], self(), "topic11", :ping)
       refute_receive :ping
 
-      PubSub.broadcast_from!(context[:server], self, "topic11", :ping)
+      PubSub.broadcast_from!(context[:server], self(), "topic11", :ping)
       refute_receive :ping
     end
 
     test "#{inspect(@adapter)} processes automatically removed from topic when killed", context do
-      pid = spawn_pid
+      pid = spawn_pid()
       assert PubSub.subscribe(context[:server], pid, "topic12")
       assert PubSub.subscribers(context[:server], "topic12") |> Enum.to_list() == [pid]
       Process.exit(pid, :kill)
