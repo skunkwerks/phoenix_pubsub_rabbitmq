@@ -52,7 +52,7 @@ defmodule Phoenix.PubSub.RabbitMQ do
 
   def init([name, opts]) do
     conn_pool_name = Module.concat(__MODULE__, ConnPool) |> Module.concat(name)
-    pub_pool_name  = Module.concat(__MODULE__, PubPool)  |> Module.concat(name)
+    pub_pool_name = Module.concat(__MODULE__, PubPool) |> Module.concat(name)
 
     conn_pool_opts = [
       name: {:local, conn_pool_name},
@@ -74,39 +74,47 @@ defmodule Phoenix.PubSub.RabbitMQ do
       :poolboy.child_spec(pub_pool_name, pub_pool_opts, conn_pool_name),
       worker(Phoenix.PubSub.RabbitMQServer, [name, conn_pool_name, pub_pool_name, opts])
     ]
-    supervise children, strategy: :one_for_one
+
+    supervise(children, strategy: :one_for_one)
   end
 
   def with_conn(pool_name, fun) when is_function(fun, 1) do
     case get_conn(pool_name, 0, @pool_size) do
-      {:ok, conn}      -> fun.(conn)
+      {:ok, conn} -> fun.(conn)
       {:error, reason} -> {:error, reason}
     end
   end
 
   defp get_conn(pool_name, retry_count, max_retry_count) do
     case :poolboy.transaction(pool_name, &GenServer.call(&1, :conn)) do
-      {:ok, conn}      -> {:ok, conn}
+      {:ok, conn} ->
+        {:ok, conn}
+
       {:error, _reason} when retry_count < max_retry_count ->
         get_conn(pool_name, retry_count + 1, max_retry_count)
-      {:error, reason} -> {:error, reason}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
   def publish(pool_name, exchange, routing_key, payload, options \\ []) do
     case get_chan(pool_name, 0, @pool_size) do
-      {:ok, chan}      -> Basic.publish(chan, exchange, routing_key, payload,options)
+      {:ok, chan} -> Basic.publish(chan, exchange, routing_key, payload, options)
       {:error, reason} -> {:error, reason}
     end
   end
 
   defp get_chan(pool_name, retry_count, max_retry_count) do
     case :poolboy.transaction(pool_name, &GenServer.call(&1, :chan)) do
-      {:ok, chan}      -> {:ok, chan}
+      {:ok, chan} ->
+        {:ok, chan}
+
       {:error, _reason} when retry_count < max_retry_count ->
         get_chan(pool_name, retry_count + 1, max_retry_count)
-      {:error, reason} -> {:error, reason}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
-
 end

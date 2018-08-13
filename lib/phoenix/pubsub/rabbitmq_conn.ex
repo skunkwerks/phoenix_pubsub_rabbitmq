@@ -38,6 +38,7 @@ defmodule Phoenix.PubSub.RabbitMQConn do
       {:ok, conn} ->
         Process.monitor(conn.pid)
         {:noreply, %{state | conn: conn, status: :connected}}
+
       {:error, _reason} ->
         :timer.send_after(@reconnect_after_ms, :connect)
         {:noreply, state}
@@ -45,7 +46,7 @@ defmodule Phoenix.PubSub.RabbitMQConn do
   end
 
   def handle_info({:DOWN, _ref, :process, _pid, _reason}, %{status: :connected} = state) do
-    Logger.error "lost RabbitMQ connection. Attempting to reconnect..."
+    Logger.error("lost RabbitMQ connection. Attempting to reconnect...")
     :timer.send_after(@reconnect_after_ms, :connect)
     {:noreply, %{state | conn: nil, status: :disconnected}}
   end
@@ -57,6 +58,7 @@ defmodule Phoenix.PubSub.RabbitMQConn do
       _, _ -> :ok
     end
   end
+
   def terminate(_reason, _state) do
     :ok
   end

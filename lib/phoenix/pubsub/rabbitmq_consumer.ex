@@ -20,20 +20,21 @@ defmodule Phoenix.PubSub.RabbitMQConsumer do
     if link, do: Process.link(pid)
 
     case RabbitMQ.with_conn(conn_pool, fn conn ->
-          {:ok, chan} = Channel.open(conn)
-          Process.monitor(chan.pid)
+           {:ok, chan} = Channel.open(conn)
+           Process.monitor(chan.pid)
 
-          {:ok, %{queue: queue}} = Queue.declare(chan, "", auto_delete: true)
-          :ok = Exchange.declare(chan, exchange, :direct, auto_delete: true)
-          :ok = Queue.bind(chan, queue, exchange, routing_key: topic)
+           {:ok, %{queue: queue}} = Queue.declare(chan, "", auto_delete: true)
+           :ok = Exchange.declare(chan, exchange, :direct, auto_delete: true)
+           :ok = Queue.bind(chan, queue, exchange, routing_key: topic)
 
-          _pid_monitor = Process.monitor(pid)
-          :ok = Basic.qos(chan, prefetch_count: @prefetch_count)
-          {:ok, consumer_tag} = Basic.consume(chan, queue, self(), exclusive: true)
-          {:ok, chan, consumer_tag}
-        end) do
+           _pid_monitor = Process.monitor(pid)
+           :ok = Basic.qos(chan, prefetch_count: @prefetch_count)
+           {:ok, consumer_tag} = Basic.consume(chan, queue, self(), exclusive: true)
+           {:ok, chan, consumer_tag}
+         end) do
       {:ok, chan, consumer_tag} ->
         {:ok, %{chan: chan, pid: pid, node_ref: node_ref, consumer_tag: consumer_tag}}
+
       {:error, :disconnected} ->
         {:stop, :disconnected}
     end
@@ -45,6 +46,7 @@ defmodule Phoenix.PubSub.RabbitMQConsumer do
 
   def handle_call(:stop, _from, %{chan: chan, consumer_tag: consumer_tag} = state) do
     {:ok, ^consumer_tag} = Basic.cancel(chan, consumer_tag)
+
     receive do
       {:basic_cancel_ok, %{consumer_tag: ^consumer_tag}} ->
         Channel.close(state.chan)
@@ -63,9 +65,11 @@ defmodule Phoenix.PubSub.RabbitMQConsumer do
 
   def handle_info({:basic_deliver, payload, %{delivery_tag: delivery_tag}}, state) do
     {remote_node_ref, from_pid, msg} = :erlang.binary_to_term(payload)
-    if from_pid == :none or remote_node_ref != state.node_ref and from_pid != state.pid do
+
+    if from_pid == :none or (remote_node_ref != state.node_ref and from_pid != state.pid) do
       send(state.pid, msg)
     end
+
     Basic.ack(state.chan, delivery_tag)
     {:noreply, state}
   end
@@ -92,5 +96,4 @@ defmodule Phoenix.PubSub.RabbitMQConsumer do
       _, _ -> :ok
     end
   end
-
 end

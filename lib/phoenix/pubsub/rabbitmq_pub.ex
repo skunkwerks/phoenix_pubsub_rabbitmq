@@ -36,6 +36,7 @@ defmodule Phoenix.PubSub.RabbitMQPub do
       {:ok, chan} ->
         Process.monitor(chan.pid)
         {:noreply, %{state | chan: chan, status: :connected}}
+
       _ ->
         :timer.send_after(@reconnect_after_ms, :connect)
         {:noreply, %{state | chan: nil, status: :disconnected}}
@@ -54,6 +55,7 @@ defmodule Phoenix.PubSub.RabbitMQPub do
       _, _ -> :ok
     end
   end
+
   def terminate(_reason, _state) do
     :ok
   end
