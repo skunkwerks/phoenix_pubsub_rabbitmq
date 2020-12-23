@@ -45,7 +45,8 @@ defmodule Phoenix.PubSub.RabbitMQ do
 
   """
 
-  def start_link(name, opts \\ []) do
+  def start_link(opts \\ []) do
+    name = opts[:name]
     supervisor_name = Module.concat(__MODULE__, name)
     Supervisor.start_link(__MODULE__, [name, opts], name: supervisor_name)
   end
