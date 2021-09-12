@@ -5,8 +5,6 @@ defmodule Phoenix.PubSub.RabbitMQServer do
   alias Phoenix.PubSub.RabbitMQConsumer, as: Consumer
   require Logger
 
-  #@prefetch_count 10
-
   @moduledoc """
   `Phoenix.PubSub` adapter for RabbitMQ
 
